@@ -17,7 +17,7 @@ class MyTaskSet(TaskSet):
         l.client.get("/stats/requests")
 
 class WebsiteUser(HttpLocust):
-    host = "http://127.0.0.1:8089"
+    #host = "http://127.0.0.1:8089"
     min_wait = 2000
     max_wait = 5000
     task_set = MyTaskSet

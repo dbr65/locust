@@ -49,10 +49,28 @@ def swarm():
 
     locust_count = int(request.form["locust_count"])
     hatch_rate = float(request.form["hatch_rate"])
-    runners.locust_runner.start_hatching(locust_count, hatch_rate)
-    response = make_response(json.dumps({'success':True, 'message': 'Swarming started'}))
+    locust_hostname = str(request.form["locust_hostname"])
+    path_base = str(request.form["path_base"])
+    valid_hostname = True
+    if locust_hostname is not None:
+        valid_hostname = is_valid_host(locust_hostname)
+    
+    if valid_hostname:
+        runners.locust_runner.start_hatching(locust_count, hatch_rate, locust_hostname, path_base)
+        response = make_response(json.dumps({'success':True, 'message': 'Swarming started'}))
+    else:
+        response = make_response(json.dumps({'success':False, 'message': 'Swarming started'}))
+    
     response.headers["Content-type"] = "application/json"
     return response
+
+def is_valid_host(host):
+    '''IDN compatible domain validator'''
+    host = host.encode('idna').lower()
+    if not hasattr(is_valid_host, '_re'):
+        import re
+        is_valid_host._re = re.compile('^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?')
+    return bool(is_valid_host._re.match(host))
 
 @app.route('/stop')
 def stop():

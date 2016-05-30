@@ -142,11 +142,15 @@ class LocustRunner(object):
             self.locusts.killone(g)
         events.hatch_complete.fire(user_count=self.num_clients)
 
-    def start_hatching(self, locust_count=None, hatch_rate=None, wait=False):
+    def start_hatching(self, locust_count=None, hatch_rate=None, locust_hostname=None, path_base=None, wait=False):
         if self.state != STATE_RUNNING and self.state != STATE_HATCHING:
             self.stats.clear_all()
             self.stats.start_time = time()
             self.exceptions = {}
+            if locust_hostname is not None:
+                self.host = locust_hostname
+            if path_base is not None:
+                self.host = self.host + path_base
             events.locust_start_hatching.fire()
 
         # Dynamically changing the locust count
@@ -197,8 +201,9 @@ class LocalLocustRunner(LocustRunner):
             self.log_exception("local", str(exception), formatted_tb)
         events.locust_error += on_locust_error
 
-    def start_hatching(self, locust_count=None, hatch_rate=None, wait=False):
-        self.hatching_greenlet = gevent.spawn(lambda: super(LocalLocustRunner, self).start_hatching(locust_count, hatch_rate, wait=wait))
+    def start_hatching(self, locust_count=None, hatch_rate=None, locust_hostname=None, path_base=None, wait=False):
+        self.hatching_greenlet = gevent.spawn(lambda: super(LocalLocustRunner, self)
+                                              .start_hatching(locust_count, hatch_rate, locust_hostname, path_base, wait=wait))
         self.greenlet = self.hatching_greenlet
 
 class DistributedLocustRunner(LocustRunner):
@@ -262,13 +267,17 @@ class MasterLocustRunner(DistributedLocustRunner):
     def user_count(self):
         return sum([c.user_count for c in self.clients.itervalues()])
     
-    def start_hatching(self, locust_count, hatch_rate):
+    def start_hatching(self, locust_count, hatch_rate, locust_hostname, path_base):
         num_slaves = len(self.clients.ready) + len(self.clients.running)
         if not num_slaves:
             logger.warning("You are running in distributed mode but have no slave servers connected. "
                            "Please connect slaves prior to swarming.")
             return
-
+        
+        if locust_hostname is not None:
+            self.host = locust_hostname
+        if path_base is not None:
+            self.host = self.host + path_base
         self.num_clients = locust_count
         slave_num_clients = locust_count / (num_slaves or 1)
         slave_hatch_rate = float(hatch_rate) / (num_slaves or 1)
